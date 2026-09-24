@@ -1,5 +1,5 @@
 # 💰 Fluxo de Caixa OCR - Gestão Financeira Inteligente
-c
+
 > 🤖 **Desenvolvido com o auxílio do Google Gemini**, atuando como Tech Lead e Pair Programmer em todas as etapas de arquitetura, código e testes.
 
 Projeto de desenvolvimento de software para controle financeiro pessoal, focado em automação de lançamentos via leitura de imagens (OCR) acessível via rede local.
