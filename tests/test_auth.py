@@ -1,6 +1,14 @@
 import os
 import pytest
-from backend.app import app, conectar_banco
+
+# ISOLAMENTO TOTAL PARA TESTES:
+os.environ["DB_PATH"] = ":memory:" # ou o caminho do tmp_path
+os.environ["JWT_SECRET_KEY"] = "chave-falsa-apenas-para-testes-com-32-bytes" # <--- Adicione esta linha!
+
+from backend.app import app
+from backend.database import conectar_banco
+
+# ... resto do código
 
 @pytest.fixture
 def cliente(tmp_path):
