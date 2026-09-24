@@ -1,0 +1,11 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.7, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\Tinga\AppData\Local\Programs\Python\Python314\python.exe
+cachedir: .pytest_cache
+rootdir: C:\fluxo-caixa-ocr
+collecting ... collected 3 items
+
+tests/test_auth.py::test_cadastro_sucesso PASSED                         [ 33%]
+tests/test_auth.py::test_cadastro_email_duplicado PASSED                 [ 66%]
+tests/test_auth.py::test_login_case_insensitive PASSED                   [100%]
+
+============================== 3 passed in 1.41s ==============================
