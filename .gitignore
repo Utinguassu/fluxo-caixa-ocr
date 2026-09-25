@@ -1,0 +1,25 @@
+# 1. Segurança e Bases de Dados
+.env
+*.db
+*.sqlite
+fluxo_caixa_teste.db
+
+# 2. Ficheiros de Upload e Imagens (Privacidade do Utilizador)
+*.jpg
+*.png
+*.jpeg
+*.pdf
+talao_real.PNG.png
+
+# 3. Ficheiros do Sistema Python e Testes
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+htmlcov/
+.coverage
+
+# 4. Ambientes Virtuais (se vier a usar no futuro)
+venv/
+env/
+.venv/

@@ -17,9 +17,11 @@ jsonschema-specifications==2025.9.1
 MarkupSafe==3.0.3
 mistune==3.3.4
 packaging==26.3
+pillow==12.3.0
 pluggy==1.6.0
 Pygments==2.21.0
 PyJWT==2.15.0
+pytesseract==0.3.13
 pytest==9.1.1
 pytest-html==4.2.0
 pytest-metadata==3.1.1
