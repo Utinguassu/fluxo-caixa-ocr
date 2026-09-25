@@ -1,15 +1,16 @@
-name: Testes Automatizados (CI)
+name: "Pipeline de Testes Automatizados (Pytest)"
 
 on:
   push:
     branches: [ "master", "main" ]
   schedule:
-    # Executa automaticamente a cada 12 horas (Cron syntax)
     - cron: '0 */12 * * *'
 
 jobs:
-  testar:
+  executar-testes:
+    name: "Executar Testes Unitários e de Isolamento"
     runs-on: ubuntu-latest
+    # ... resto do código
 
     steps:
     - name: Copiar código do repositório
