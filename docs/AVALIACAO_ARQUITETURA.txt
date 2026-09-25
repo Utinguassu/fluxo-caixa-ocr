@@ -1,0 +1,85 @@
+AVALIACAO ARQUITETURAL - FLUXO DE CAIXA OCR
+Data: 25/09/2026
+
+1. PARECER GERAL
+
+O projeto esta bem encaminhado para um MVP local e possui uma base modular que permite evolucao. No entanto, ainda nao esta pronto para producao ou hospedagem em nuvem. Atualmente, trata-se de uma aplicacao local modular, e nao de uma aplicacao cloud-ready.
+
+A migracao para a nuvem e possivel sem recomecar o projeto, mas alguns pontos importantes precisam ser corrigidos antes da V2.
+
+2. RISCOS PRIORITARIOS
+
+2.1. Senha/PIN armazenado em texto puro
+O PIN e gravado diretamente no banco e comparado diretamente no login. Isso e critico para uma aplicacao financeira. Deve ser utilizado hash de senha com Werkzeug ou bcrypt.
+Arquivos relacionados: backend/routes/auth.py
+
+2.2. Modo debug habilitado
+O servidor inicia com debug=True. Esse modo nao deve ser usado em producao ou na nuvem.
+Arquivo relacionado: backend/app.py
+
+2.3. SQLite limitado para a futura nuvem
+SQLite funciona bem localmente, mas dificulta concorrencia, backups, multiplas instancias e escalabilidade. A aplicacao tambem usa diretamente SQL SQLite dentro das rotas.
+Arquivos relacionados: backend/database.py e backend/routes/transacoes.py
+
+Para a V2, o recomendado e migrar para PostgreSQL.
+
+2.4. Configuracao do OCR parcialmente fixa no Windows
+O caminho do executavel do Tesseract esta codificado no codigo. Na nuvem, essa configuracao devera vir de variaveis de ambiente ou da imagem Docker.
+Arquivo relacionado: backend/routes/ocr.py
+
+2.5. Upload sem limite de tamanho ou validacao real do conteudo
+O sistema verifica apenas a extensao do arquivo. Um arquivo muito grande ou com extensao falsa pode causar consumo excessivo de memoria. PDF tambem esta permitido, mas seu processamento com PIL ainda precisa ser validado com testes reais.
+Arquivo relacionado: backend/routes/ocr.py
+
+2.6. Valores financeiros usando float
+Valores monetarios devem usar Decimal ou ser armazenados como centavos em inteiro. O uso de float pode causar erros de precisao.
+Arquivo relacionado: backend/routes/transacoes.py
+
+2.7. Duas implementacoes de banco
+backend/database.py e backend/models.py possuem logicas diferentes de criacao do banco. Isso pode causar divergencia e confusao. Deve existir uma unica fonte de verdade, idealmente com migrations.
+
+3. PONTOS POSITIVOS
+
+- Rotas separadas em Blueprints: autenticacao, OCR e transacoes.
+- Uso de variaveis de ambiente para JWT_SECRET_KEY e DB_PATH.
+- Queries com parametros, reduzindo risco de SQL injection.
+- JWT e isolamento de dados por usuario ja implementados.
+- Testes cobrindo cadastro, login, isolamento de dados e upload OCR.
+- A suite atual passou com 7 testes aprovados.
+- O OCR pode ser levado para a nuvem sem reescrever a regra principal.
+- O Tesseract e o idioma portugues podem ser instalados dentro de um container Docker.
+
+4. LACUNAS FUNCIONAIS
+
+A documentacao preve funcionalidades que ainda nao aparecem completamente na estrutura atual:
+
+- Saldo inicial.
+- Dashboard com saldo e totais.
+- Historico de saldos.
+- Extracao automatica de data, valor e estabelecimento pelo OCR.
+- Tela administrativa para cadastro de usuarios.
+- Exportacao de relatorios.
+- Autenticacao em dois fatores.
+
+A pasta frontend tambem esta vazia no momento.
+
+5. ORDEM RECOMENDADA PARA A V2
+
+1. Implementar hash das senhas.
+2. Remover debug=True do modo de producao.
+3. Centralizar configuracoes da aplicacao e do OCR por ambiente.
+4. Remover a duplicidade entre database.py e models.py.
+5. Migrar SQLite para PostgreSQL usando migrations.
+6. Separar rotas, servicos e persistencia do banco.
+7. Criar um Dockerfile com Python, Tesseract e por.traineddata.
+8. Adicionar limites e validacao segura para uploads.
+9. Criar testes para erros, arquivos grandes, PDFs, concorrencia e banco PostgreSQL.
+10. Hospedar a API em um servico cloud com HTTPS, dominio e variaveis de ambiente.
+
+6. CONCLUSAO
+
+A direcao do projeto esta correta para uma V1 local. A estrutura atual oferece uma boa fundacao, principalmente pela separacao das rotas, autenticacao JWT, isolamento dos dados e existencia de testes.
+
+A migracao para a nuvem sera simples em relacao ao OCR, pois o Tesseract pode ser instalado no ambiente cloud. Entretanto, a preparacao completa exigira principalmente melhorias de seguranca, troca do banco SQLite por PostgreSQL, configuracao por ambiente, Docker e endurecimento dos uploads.
+
+Classificacao atual: boa fundacao para MVP local; preparacao parcial para nuvem.
