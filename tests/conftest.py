@@ -1,4 +1,5 @@
 import os
+import gc
 import pytest
 from datetime import datetime
 from backend.app import app
@@ -8,6 +9,9 @@ from backend.database import obter_conexao, inicializar_banco
 @pytest.fixture(autouse=True)
 def limpar_banco_antes_de_cada_teste():
     """Garante um banco zerado e isolado antes de CADA teste."""
+    # Força o Garbage Collector a destruir conexões "fantasmas" retidas na memória pelo teste anterior
+    gc.collect()
+    
     inicializar_banco()
     conn = obter_conexao()
     conn.execute('DELETE FROM transacoes')
@@ -19,12 +23,12 @@ def limpar_banco_antes_de_cada_teste():
 def client():
     """Configura o cliente de testes simulando o servidor Flask."""
     app.config['TESTING'] = True
-    app.config['JWT_SECRET_KEY'] = 'test-secret-key'
+    # A chave secreta agora é herdada naturalmente do ambiente, garantindo assinaturas idênticas
     with app.test_client() as client:
         yield client
 
 @pytest.fixture
-def token():
+def token(client): # A injeção do 'client' aqui força o Pytest a respeitar a ordem de execução
     """Gera um token JWT real e injeta o usuário base para os testes que exigem login."""
     conn = obter_conexao()
     conn.execute('''
