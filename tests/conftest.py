@@ -1,3 +1,4 @@
+import os
 import pytest
 from datetime import datetime
 from backend.app import app
@@ -7,9 +8,8 @@ from backend.database import obter_conexao, inicializar_banco
 @pytest.fixture(autouse=True)
 def limpar_banco_antes_de_cada_teste():
     """Garante um banco zerado e isolado antes de CADA teste."""
-    inicializar_banco()  # Garante que a estrutura (tabelas) existe
+    inicializar_banco()
     conn = obter_conexao()
-    # Esvazia as tabelas (a sua ideia aplicada na prática)
     conn.execute('DELETE FROM transacoes')
     conn.execute('DELETE FROM usuarios')
     conn.commit()
@@ -38,6 +38,15 @@ def token():
         return create_access_token(identity=1)
 
 # --- CONFIGURAÇÃO DO RELATÓRIO HTML ---
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config):
+    """Personaliza o nome do relatório HTML com data, hora e ambiente."""
+    ambiente = "GitHub" if os.getenv("GITHUB_ACTIONS") == "true" else "Local"
+    agora = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    nome_arquivo = f"relatorios/relatorio_{ambiente}_{agora}.html"
+    config.option.htmlpath = nome_arquivo
+
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """Substitui o nome técnico do teste pela descrição amigável (Docstring) no relatório."""
@@ -46,16 +55,3 @@ def pytest_runtest_makereport(item, call):
     docstring = getattr(item.function, '__doc__', None)
     if docstring:
         report.nodeid = docstring.strip()
-
-        @pytest.hookimpl(tryfirst=True)
-def pytest_configure(config):
-    """Personaliza o nome do relatório HTML com data, hora e ambiente."""
-    # Descobre se está a rodar no GitHub Actions ou no seu computador local
-    ambiente = "GitHub" if os.getenv("GITHUB_ACTIONS") == "true" else "Local"
-    
-    # Formata a data e hora atual (ex: 2026-09-27_14-04-00)
-    agora = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    
-    # Monta o nome final do arquivo e diz ao Pytest onde guardá-lo
-    nome_arquivo = f"relatorios/relatorio_{ambiente}_{agora}.html"
-    config.option.htmlpath = nome_arquivo
