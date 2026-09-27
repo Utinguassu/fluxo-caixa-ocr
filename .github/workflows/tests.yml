@@ -14,14 +14,14 @@ jobs:
 
     steps:
     - name: Baixar o código do repositório
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Configurar o Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
-    - name: Instalar Tesseract OCR no Servidor (Novo!)
+    - name: Instalar Tesseract OCR no Servidor
       run: |
         sudo apt-get update
         sudo apt-get install -y tesseract-ocr
@@ -37,8 +37,8 @@ jobs:
         python -m pytest
 
     - name: Salvar Relatório HTML como Artefato
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always() 
       with:
         name: relatorio-testes-html
-        path: relatorios/relatorio_testes.html
+        path: relatorios/
