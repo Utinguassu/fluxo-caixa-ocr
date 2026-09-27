@@ -11,6 +11,8 @@ on:
 jobs:
   testar_aplicacao:
     runs-on: ubuntu-latest
+    env:
+      JWT_SECRET_KEY: "test-secret-key-environment-isolated-2026"
 
     steps:
     - name: Baixar o código do repositório
