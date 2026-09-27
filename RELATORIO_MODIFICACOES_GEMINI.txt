@@ -1,0 +1,103 @@
+RELATORIO DE ALTERACOES - FLUXO DE CAIXA OCR
+Preparado para handoff ao Gemini
+Data: 2026-09-25
+
+OBJETIVO
+Registrar as mudancas feitas nesta sessao para organizar o servico OCR e separar os bancos de producao e teste. Este documento descreve o estado atual do workspace; nao representa um commit Git.
+
+1. ARQUIVO OCR CRIADO
+
+Arquivo: backend/services/ocr_service.py
+Pasta criada: backend/services/
+
+Conteudo e responsabilidade:
+- Configura o executavel Tesseract no Windows.
+- Implementa extrair_dados_transacao(texto_bruto), que tenta extrair valor em reais, data em portugues, estabelecimento/descricao e tipo da transacao.
+- Implementa processar_imagem_ocr(ficheiro_imagem), que executa Tesseract em portugues e devolve texto bruto mais os dados extraidos.
+- O arquivo foi criado com o conteudo fornecido pelo usuario.
+
+2. ROTA OCR
+
+Arquivo: backend/routes/ocr.py
+
+Correcao feita nesta sessao:
+- A rota importava obter_conexao de backend.database, mas essa funcao nao existia.
+- backend.database define conectar_banco. O import e a chamada da rota foram ajustados para usar conectar_banco.
+- Essa divergencia causava ImportError ao importar backend.app, antes do processamento da imagem.
+
+Nota de autoria/contexto:
+- No inicio desta solicitacao de organizacao dos bancos, a rota ja continha a integracao com backend.services.ocr_service, a persistencia da transacao e outras alteracoes do endpoint. Essas partes ja estavam no workspace e nao foram introduzidas pela alteracao de nomes descrita acima.
+
+3. SEPARACAO DOS BANCOS SQLITE
+
+Pastas criadas:
+- backend/db/prd/
+- backend/db/tests/
+
+Banco de producao:
+- Novo caminho: backend/db/prd/app_prd.db
+- O banco existente backend/fluxo_caixa.db foi copiado para o novo caminho usando o backup da API do SQLite.
+- O arquivo original backend/fluxo_caixa.db foi mantido intacto; nao foi removido.
+- Na verificacao, ambos apresentavam 2 usuarios e 0 transacoes.
+
+Banco do teste manual:
+- Caminho: backend/db/tests/manual_test.db
+- Criado/atualizado ao executar teste_real_ocr.py.
+- Na verificacao depois da execucao bem-sucedida, continha 1 usuario e 1 transacao de teste.
+
+Arquivos de banco *.db sao ignorados pelo .gitignore existente. Nenhuma alteracao foi feita no .gitignore.
+
+4. ARQUIVOS DE CODIGO ALTERADOS PARA USAR A ESTRUTURA
+
+Arquivo: backend/database.py
+- BANCO_PADRAO passou de backend/fluxo_caixa.db para backend/db/prd/app_prd.db.
+- conectar_banco cria a pasta-pai do caminho ativo com os.makedirs(..., exist_ok=True), permitindo que SQLite crie o arquivo dentro da nova estrutura.
+- DB_PATH continua podendo sobrescrever o caminho padrao.
+
+Arquivo: teste_real_ocr.py
+- DB_PATH agora aponta para backend/db/tests/manual_test.db usando um caminho absoluto baseado na localizacao do proprio script.
+- DB_PATH e JWT_SECRET_KEY sao definidos antes de importar backend.app. Isso evita que a inicializacao do app durante o import use o banco de producao.
+
+Arquivo novo: tests/conftest.py
+- Define DB_PATH como :memory: e JWT_SECRET_KEY de teste durante a coleta/importacao dos testes automatizados.
+- O objetivo e evitar que a inicializacao de backend.app durante a coleta toque no banco de producao.
+- Os testes existentes continuam podendo definir seus proprios caminhos temporarios por teste.
+
+5. VALIDACOES EXECUTADAS
+
+- python teste_real_ocr.py: passou. O OCR retornou descricao Pagueveloz, valor 178.33 e data 2026-09-24; a API salvou uma transacao no banco manual.
+- python -m py_compile backend/database.py teste_real_ocr.py tests/conftest.py backend/services/ocr_service.py: passou.
+- python -m pytest tests -q: 4 passaram e 3 falharam.
+
+Falhas observadas na suite OCR:
+- Dois testes tentam aplicar mock em backend.routes.ocr.pytesseract.image_to_string. No codigo atual, pytesseract e usado dentro de backend.services.ocr_service, entao o alvo do mock dos testes esta desatualizado.
+- Um teste espera a mensagem "Formato de ficheiro nao suportado.", mas a rota retorna "Formato nao suportado. Use PNG, JPG, JPEG ou PDF.".
+- Essas falhas foram registradas, mas os testes nao foram alterados nesta tarefa.
+
+6. ESTADO DO GIT
+
+No ultimo git status --short:
+ M backend/database.py
+ M backend/routes/ocr.py
+ M teste_real_ocr.py
+?? backend/services/
+?? tests/conftest.py
+
+Os arquivos SQLite nao aparecem no status porque *.db ja esta no .gitignore.
+
+IMPORTANTE SOBRE COMMIT:
+- Nenhum git add ou git commit foi executado nesta sessao.
+- Portanto, nao existe hash de commit para estas alteracoes; elas permanecem no working tree.
+- backend/fluxo_caixa.db foi mantido como copia original. O codigo agora usa backend/db/prd/app_prd.db como banco padrao.
+
+RESUMO DO FLUXO ATUAL
+
+Aplicacao em modo normal:
+backend/database.py -> backend/db/prd/app_prd.db
+
+Teste manual OCR:
+teste_real_ocr.py -> backend/db/tests/manual_test.db
+
+Testes automatizados durante import/coleta:
+tests/conftest.py -> :memory:
+Cada teste pode substituir DB_PATH por seu proprio banco temporario.

@@ -1,45 +1,63 @@
 import os
-import platform
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
-from PIL import Image
-import pytesseract
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from backend.services.ocr_service import processar_imagem_ocr
+from backend.database import obter_conexao
 
-# Híbrido: Configuração inteligente para Windows (Local) vs Linux (Nuvem)
-if platform.system() == "Windows":
-    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+ocr_bp = Blueprint('ocr_bp', __name__)
 
-ocr_bp = Blueprint('ocr', __name__)
-
+# Extensões permitidas para upload
 EXTENSOES_PERMITIDAS = {'png', 'jpg', 'jpeg', 'pdf'}
 
-def ficheiro_permitido(nome_ficheiro):
-    return '.' in nome_ficheiro and nome_ficheiro.rsplit('.', 1)[1].lower() in EXTENSOES_PERMITIDAS
+def arquivo_permitido(nome_arquivo):
+    return '.' in nome_arquivo and nome_arquivo.rsplit('.', 1)[1].lower() in EXTENSOES_PERMITIDAS
 
 @ocr_bp.route('/ocr/upload', methods=['POST'])
 @jwt_required()
-def processar_comprovativo():
-    if 'ficheiro' not in request.files:
-        return jsonify({"erro": "Nenhum ficheiro foi enviado."}), 400
+def upload_ocr():
+    usuario_id = get_jwt_identity()
 
-    ficheiro = request.files['ficheiro']
+    if 'file' not in request.files:
+        return jsonify({"erro": "Nenhum arquivo enviado."}), 400
 
-    if ficheiro.filename == '':
-        return jsonify({"erro": "O ficheiro selecionado não tem nome."}), 400
+    arquivo = request.files['file']
 
-    if not ficheiro_permitido(ficheiro.filename):
-        return jsonify({"erro": "Formato de ficheiro não suportado."}), 400
+    if arquivo.filename == '':
+        return jsonify({"erro": "Nenhum arquivo selecionado."}), 400
+
+    if not arquivo_permitido(arquivo.filename):
+        return jsonify({"erro": "Formato de arquivo não suportado. Use PNG, JPG, JPEG ou PDF."}), 400
 
     try:
-        # Carrega a imagem na memória e executa o motor OCR (idioma: português)
-        imagem = Image.open(ficheiro.stream)
-        texto_extraido = pytesseract.image_to_string(imagem, lang='por')
+        # Processa a imagem utilizando o serviço de OCR isolado
+        resultado_ocr = processar_imagem_ocr(arquivo)
         
+        dados = resultado_ocr.get("dados_extraidos", {})
+        valor = dados.get("valor", 0.0)
+        data = dados.get("data", "")
+        descricao = dados.get("descricao", "Despesa OCR")
+        tipo = dados.get("tipo", "despesa")
+
+        # Persiste a transação na base de dados ativa
+        conn = obter_conexao()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO transacoes (usuario_id, valor, data, descricao, tipo)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (usuario_id, valor, data, descricao, tipo)
+        )
+        conn.commit()
+        transacao_id = cursor.lastrowid
+        conn.close()
+
         return jsonify({
-            "mensagem": "Comprovativo processado com sucesso!",
-            "ficheiro": ficheiro.filename,
-            "texto_bruto": texto_extraido.strip()
+            "mensagem": "Comprovativo processado e transação guardada com sucesso!",
+            "transacao_id": transacao_id,
+            "dados_extraidos": dados,
+            "texto_bruto": resultado_ocr.get("texto_bruto", "")
         }), 200
-        
+
     except Exception as e:
-        return jsonify({"erro": f"Falha no processamento OCR: {str(e)}"}), 500
+        return jsonify({"erro": f"Erro ao processar o arquivo: {str(e)}"}), 500

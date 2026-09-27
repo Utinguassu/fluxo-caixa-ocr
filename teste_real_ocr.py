@@ -1,10 +1,15 @@
 import os
+
+# 1. Configura um ambiente rápido para o teste
+os.environ["DB_PATH"] = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "backend", "db", "tests", "manual_test.db"
+)
+os.environ["JWT_SECRET_KEY"] = "chave-secreta-teste-real"
+
 from backend.app import app
 from backend.database import inicializar_banco
 
-# 1. Configura um ambiente rápido para o teste
-os.environ["DB_PATH"] = "banco_teste_real.db"
-os.environ["JWT_SECRET_KEY"] = "chave-secreta-teste-real"
 inicializar_banco()
 
 print("🤖 A iniciar teste REAL do Motor OCR...")

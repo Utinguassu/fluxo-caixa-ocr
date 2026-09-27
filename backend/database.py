@@ -1,15 +1,33 @@
 import os
 import sqlite3
 
-PASTA_BACKEND = os.path.dirname(os.path.abspath(__file__))
-BANCO_PADRAO = os.path.join(PASTA_BACKEND, "fluxo_caixa.db")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PRD_PATH = os.path.join(BASE_DIR, 'db', 'prd', 'app_prd.db')
+DB_TEST_PATH = os.path.join(BASE_DIR, 'db', 'tests', 'manual_test.db')
 
-def conectar_banco():
-    caminho_ativo = os.getenv("DB_PATH", BANCO_PADRAO)
-    return sqlite3.connect(caminho_ativo)
+def conectar_banco(ambiente=None):
+    """
+    Gere a conexão com o banco de dados de acordo com o ambiente:
+    - 'prd': Banco de dados oficial da aplicação.
+    - 'test': Banco de dados isolado para testes manuais/automatizados.
+    """
+    os.makedirs(os.path.dirname(DB_PRD_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(DB_TEST_PATH), exist_ok=True)
 
-def inicializar_banco():
-    conexao = conectar_banco()
+    env = ambiente or os.getenv("FLASK_ENV", "prd")
+    caminho_db = DB_TEST_PATH if env == "test" else DB_PRD_PATH
+
+    # Mantem DB_PATH como override para os testes temporarios ja existentes.
+    if ambiente is None:
+        caminho_db = os.getenv("DB_PATH", caminho_db)
+
+    conn = sqlite3.connect(caminho_db)
+    conn.execute("PRAGMA foreign_keys = ON;")
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def inicializar_banco(ambiente=None):
+    conexao = conectar_banco(ambiente)
     cursor = conexao.cursor()
     
     # Tabela de Usuários (CARD-01)
@@ -37,3 +55,7 @@ def inicializar_banco():
     
     conexao.commit()
     conexao.close()
+
+
+# Alias para manter compatibilidade com modulos que usam obter_conexao().
+obter_conexao = conectar_banco

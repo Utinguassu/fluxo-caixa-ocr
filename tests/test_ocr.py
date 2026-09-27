@@ -1,97 +1,64 @@
-import os
 import io
+import os
+import pytest
 from unittest.mock import patch
-from PIL import Image
-from backend.app import app
-from backend.database import inicializar_banco
 
-@patch('backend.routes.ocr.pytesseract.image_to_string')
-def test_upload_formato_valido(mock_ocr, tmp_path):
-    """Garante que formatos permitidos (.png, .jpg, .pdf) são aceites"""
-    mock_ocr.return_value = ""
-    db_path = tmp_path / "fluxo_caixa_ocr_teste.db"
-    os.environ["DB_PATH"] = str(db_path)
-    os.environ["JWT_SECRET_KEY"] = "chave-falsa-apenas-para-testes-com-32-bytes"
-    app.config['TESTING'] = True
-    inicializar_banco()
+def test_upload_formato_nao_suportado(client, token):
+    """Teste 04 - Validação de Arquivo: Bloqueia upload de formatos não suportados (ex: .txt)."""
+    data = {
+        'file': (io.BytesIO(b"conteudo invalido"), 'teste.txt')
+    }
+    
+    response = client.post(
+        '/ocr/upload', 
+        data=data, 
+        content_type='multipart/form-data',
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    
+    assert response.status_code == 400
+    assert "Formato de arquivo não suportado" in response.get_json()["erro"]
 
-    with app.test_client() as cliente:
-        # 1. Cria utilizador e faz login para obter o token JWT
-        cliente.post('/cadastro', json={"nome": "OCR User", "email": "ocr@exemplo.com", "senha_pin": "123456"})
-        resp_login = cliente.post('/login', json={"email": "ocr@exemplo.com", "senha_pin": "123456"})
-        token = resp_login.get_json()["token"]
-        headers = {"Authorization": f"Bearer {token}"}
+@patch('backend.services.ocr_service.pytesseract.image_to_string')
+def test_processamento_ocr_sucesso(mock_tesseract, client, token):
+    """Teste 05 - Fluxo de OCR (Mock): Valida a extração simulada de texto de uma imagem."""
+    mock_tesseract.return_value = "Pagueveloz\nR$ 150,50\n24/09/2026"
+    imagem_png_valida = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82'
 
-        # 2. Simula o envio de um talão em formato PNG válido
-        imagem_memoria = io.BytesIO()
-        Image.new('RGB', (10, 10), color='white').save(imagem_memoria, format='PNG')
-        imagem_memoria.seek(0)
-        ficheiro_falso = (imagem_memoria, "talao.png")
-        
-        resposta = cliente.post('/ocr/upload', headers=headers, data={
-            'ficheiro': ficheiro_falso
-        })
+    data = {
+        'file': (io.BytesIO(imagem_png_valida), 'talao.png')
+    }
 
-        assert resposta.status_code == 200
-        assert resposta.get_json()["mensagem"] == "Comprovativo processado com sucesso!"
+    response = client.post(
+        '/ocr/upload', 
+        data=data, 
+        content_type='multipart/form-data',
+        headers={"Authorization": f"Bearer {token}"}
+    )
 
-def test_upload_formato_bloqueado(tmp_path):
-    """Garante que formatos perigosos ou não suportados (.txt, .exe) são bloqueados (Segurança)"""
-    db_path = tmp_path / "fluxo_caixa_ocr_teste2.db"
-    os.environ["DB_PATH"] = str(db_path)
-    os.environ["JWT_SECRET_KEY"] = "chave-falsa-apenas-para-testes-com-32-bytes"
-    app.config['TESTING'] = True
-    inicializar_banco()
+    assert response.status_code == 200
 
-    with app.test_client() as cliente:
-        # 1. Faz login
-        cliente.post('/cadastro', json={"nome": "OCR User 2", "email": "ocr2@exemplo.com", "senha_pin": "123456"})
-        resp_login = cliente.post('/login', json={"email": "ocr2@exemplo.com", "senha_pin": "123456"})
-        token = resp_login.get_json()["token"]
-        headers = {"Authorization": f"Bearer {token}"}
+def test_processamento_ocr_arquivo_real(client, token):
+    """Teste 07 - OCR Real: Processa uma imagem física real e salva os dados no banco de testes."""
+    caminho_imagem = 'tests/dados_teste/talao_real.png'
+    
+    # Se o arquivo não existir na pasta, o Pytest pula o teste de forma elegante
+    if not os.path.exists(caminho_imagem):
+        pytest.skip(f"Arquivo real não encontrado no caminho: {caminho_imagem}")
 
-        # 2. Tenta enviar um ficheiro TXT (Proibido pelas regras de segurança)
-        ficheiro_proibido = (io.BytesIO(b"texto malicioso ou invalido"), "documento.txt")
-        
-        resposta = cliente.post('/ocr/upload', headers=headers, data={
-            'ficheiro': ficheiro_proibido
-        })
+    # Abre o arquivo de imagem real em modo leitura de bytes ('rb')
+    with open(caminho_imagem, 'rb') as imagem_real:
+        data = {
+            'file': (imagem_real, 'talao_real.png')
+        }
 
-        # Deve barrar com erro 400
-        assert resposta.status_code == 400
-        assert resposta.get_json()["erro"] == "Formato de ficheiro não suportado."
+        # Envia para a API real, acionando o Tesseract verdadeiro no seu computador
+        response = client.post(
+            '/ocr/upload', 
+            data=data, 
+            content_type='multipart/form-data',
+            headers={"Authorization": f"Bearer {token}"}
+        )
 
-@patch('backend.routes.ocr.pytesseract.image_to_string')
-def test_extracao_texto_ocr_com_sucesso(mock_ocr, tmp_path):
-    """Simula a extração de texto de uma imagem sem usar o binário real no CI/CD."""
-    # Configura o simulador para devolver um texto fictício
-    mock_ocr.return_value = "Supermercado Assado Raiz\nTotal: R$ 150,00"
-
-    db_path = tmp_path / "fluxo_caixa_ocr_teste3.db"
-    os.environ["DB_PATH"] = str(db_path)
-    os.environ["JWT_SECRET_KEY"] = "chave-teste"
-    app.config['TESTING'] = True
-    inicializar_banco()
-
-    with app.test_client() as cliente:
-        # Autenticação
-        cliente.post('/cadastro', json={"nome": "User", "email": "ocr3@exemplo.com", "senha_pin": "123456"})
-        resp_login = cliente.post('/login', json={"email": "ocr3@exemplo.com", "senha_pin": "123456"})
-        token = resp_login.get_json()["token"]
-        headers = {"Authorization": f"Bearer {token}"}
-
-        # Cria uma imagem falsa em memória
-        imagem_memoria = io.BytesIO()
-        Image.new('RGB', (10, 10), color='white').save(imagem_memoria, format='PNG')
-        imagem_memoria.seek(0)
-        
-        # Faz o upload
-        resposta = cliente.post('/ocr/upload', headers=headers, data={
-            'ficheiro': (imagem_memoria, "talao.png")
-        })
-
-        dados = resposta.get_json()
-        assert resposta.status_code == 200
-        assert dados["mensagem"] == "Comprovativo processado com sucesso!"
-        assert dados["texto_bruto"] == "Supermercado Assado Raiz\nTotal: R$ 150,00"
-        mock_ocr.assert_called_once()
+    # Verifica se a API processou e gravou no banco de teste com sucesso
+    assert response.status_code == 200

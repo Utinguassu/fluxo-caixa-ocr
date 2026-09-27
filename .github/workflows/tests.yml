@@ -1,31 +1,44 @@
-name: "Pipeline de Testes Automatizados (Pytest)"
+name: Suíte de Testes Automatizados
 
 on:
   push:
     branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
   schedule:
-    - cron: '0 */12 * * *'
+    - cron: '0 0 * * *'
 
 jobs:
-  executar-testes:
-    name: "Executar Testes Unitários e de Isolamento"
+  testar_aplicacao:
     runs-on: ubuntu-latest
-    # ... resto do código
 
     steps:
-    - name: Copiar código do repositório
-      uses: actions/checkout@v4
+    - name: Baixar o código do repositório
+      uses: actions/checkout@v3
 
-    - name: Configurar ambiente Python
-      uses: actions/setup-python@v5
+    - name: Configurar o Python
+      uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: '3.10'
 
-    - name: Instalar dependências
+    - name: Instalar Tesseract OCR no Servidor (Novo!)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y tesseract-ocr
+
+    - name: Instalar dependências do projeto
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        pip install pytest pytest-html
 
-    - name: Executar a suíte de testes com Pytest
+    - name: Executar Suíte de Testes
       run: |
-        pytest -v
+        python -m pytest
+
+    - name: Salvar Relatório HTML como Artefato
+      uses: actions/upload-artifact@v3
+      if: always() 
+      with:
+        name: relatorio-testes-html
+        path: relatorios/relatorio_testes.html
