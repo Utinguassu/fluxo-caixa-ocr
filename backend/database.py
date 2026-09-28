@@ -49,9 +49,15 @@ def inicializar_banco(ambiente=None):
             valor REAL NOT NULL,
             descricao TEXT NOT NULL,
             data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            categoria TEXT DEFAULT 'Outros',
             FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
         )
     ''')
+
+    cursor.execute('PRAGMA table_info(transacoes)')
+    colunas_transacoes = {coluna['name'] for coluna in cursor.fetchall()}
+    if 'categoria' not in colunas_transacoes:
+        cursor.execute("ALTER TABLE transacoes ADD COLUMN categoria TEXT DEFAULT 'Outros'")
     
     conexao.commit()
     conexao.close()
