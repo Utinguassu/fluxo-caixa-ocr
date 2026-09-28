@@ -41,7 +41,7 @@ def token(client):
 
     app.config['JWT_SECRET_KEY'] = JWT_SECRET_KEY_TESTE
     with app.app_context():
-        return create_access_token(identity=1)
+        return create_access_token(identity=str(1))
 
 # --- CONFIGURAÇÃO DO RELATÓRIO HTML ---
 
