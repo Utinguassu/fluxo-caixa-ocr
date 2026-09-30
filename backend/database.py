@@ -40,6 +40,17 @@ def inicializar_banco(ambiente=None):
         )
     ''')
     
+    # NOVA: Tabela de Histórico de Saldos Iniciais (RN05 e RN05.01)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS historico_saldos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER NOT NULL,
+            valor REAL NOT NULL,
+            data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+        )
+    ''')
+    
     # Tabela de Transações com Isolamento por Usuário (CARD-02)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS transacoes (
@@ -65,3 +76,8 @@ def inicializar_banco(ambiente=None):
 
 # Alias para manter compatibilidade com modulos que usam obter_conexao().
 obter_conexao = conectar_banco
+
+# Permite executar o script diretamente no terminal para criar/atualizar o banco
+if __name__ == '__main__':
+    inicializar_banco()
+    print("Banco de dados inicializado/atualizado com sucesso!")

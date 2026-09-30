@@ -9,6 +9,7 @@ from backend.database import inicializar_banco
 from backend.routes.auth import auth_bp
 from backend.routes.transacoes import transacoes_bp
 from backend.routes.ocr import ocr_bp
+from backend.routes.saldo import saldo_bp
 
 load_dotenv()
 
@@ -29,6 +30,7 @@ inicializar_banco()
 app.register_blueprint(auth_bp)
 app.register_blueprint(transacoes_bp)
 app.register_blueprint(ocr_bp)
+app.register_blueprint(saldo_bp)
 
 if __name__ == '__main__':
     print("🚀 Motor iniciado. API limpa e modular rodando em http://localhost:5000")
