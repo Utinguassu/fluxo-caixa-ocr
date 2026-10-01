@@ -49,6 +49,6 @@ def login():
 
     if usuario:
         token_acesso = create_access_token(identity=str(usuario[0]))
-        return jsonify({"mensagem": "Login aprovado", "token": token_acesso, "nome": usuario[1]}), 200
+        return jsonify({"mensagem": "Login aprovado", "access_token": token_acesso, "nome": usuario[1]}), 200
     else:
         return jsonify({"erro": "E-mail ou PIN incorretos."}), 401
