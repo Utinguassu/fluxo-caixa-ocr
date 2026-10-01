@@ -1,3 +1,4 @@
+from backend.database import conectar_banco
 from backend.services.saldo_service import SaldoService
 
 def test_calculo_saldo_com_multiplas_despesas():
@@ -71,6 +72,45 @@ def test_api_cadastra_e_consulta_saldo_inicial(client, token):
         "saldo_inicial": 850.75,
         "total_debitos": 0.0,
         "saldo_atualizado": 850.75,
+    }
+
+
+def test_api_saldo_soma_debitos_do_usuario_autenticado(client, token):
+    conexao = conectar_banco()
+    conexao.execute(
+        "INSERT INTO saldos (usuario_id, valor) VALUES (?, ?)",
+        (1, 1000.00),
+    )
+    conexao.execute(
+        "INSERT INTO lancamentos (usuario_id, tipo, valor) VALUES (?, ?, ?)",
+        (1, "PIX/CC", 125.50),
+    )
+    conexao.execute(
+        "INSERT INTO lancamentos (usuario_id, tipo, valor) VALUES (?, ?, ?)",
+        (1, "CARTAO", 74.50),
+    )
+    conexao.execute(
+        "INSERT INTO usuarios (id, nome, email, senha_pin) VALUES (?, ?, ?, ?)",
+        (2, "Outro Usuario", "outro@teste.com", "1234"),
+    )
+    conexao.execute(
+        "INSERT INTO lancamentos (usuario_id, tipo, valor) VALUES (?, ?, ?)",
+        (2, "PIX/CC", 900.00),
+    )
+    conexao.commit()
+    conexao.close()
+
+    response = client.get(
+        "/api/saldo",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json == {
+        "precisa_saldo_inicial": False,
+        "saldo_inicial": 1000.0,
+        "total_debitos": 200.0,
+        "saldo_atualizado": 800.0,
     }
 
 

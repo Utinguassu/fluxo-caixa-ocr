@@ -16,6 +16,7 @@ def limpar_banco_antes_de_cada_teste():
     inicializar_banco()
     conn = obter_conexao()
     conn.execute('DELETE FROM transacoes')
+    conn.execute('DELETE FROM lancamentos')
     conn.execute('DELETE FROM saldos')
     conn.execute('DELETE FROM historico_saldos')
     conn.execute('DELETE FROM usuarios')

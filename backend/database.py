@@ -36,15 +36,9 @@ def inicializar_banco(ambiente=None):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
-            senha_pin TEXT NOT NULL,
-            telefone TEXT
+            senha_pin TEXT NOT NULL
         )
     ''')
-
-    cursor.execute('PRAGMA table_info(usuarios)')
-    colunas_usuarios = {coluna['name'] for coluna in cursor.fetchall()}
-    if 'telefone' not in colunas_usuarios:
-        cursor.execute("ALTER TABLE usuarios ADD COLUMN telefone TEXT")
     
     # NOVA: Tabela de Histórico de Saldos Iniciais (RN05 e RN05.01)
     cursor.execute('''
@@ -81,6 +75,20 @@ def inicializar_banco(ambiente=None):
         )
     ''')
 
+# Tabela para armazenar os débitos capturados (RN01, RN02, RN03)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS lancamentos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER NOT NULL,
+            tipo TEXT NOT NULL, -- 'PIX/CC' ou 'CARTAO'
+            valor REAL NOT NULL,
+            data_lancamento DATE,
+            estabelecimento TEXT,
+            data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+        )
+    ''')
+    
     cursor.execute('PRAGMA table_info(transacoes)')
     colunas_transacoes = {coluna['name'] for coluna in cursor.fetchall()}
     if 'categoria' not in colunas_transacoes:

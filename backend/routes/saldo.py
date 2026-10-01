@@ -56,14 +56,21 @@ def consultar_saldo_inicial():
             ORDER BY data_cadastro DESC LIMIT 1
         ''', (usuario_id,))
         resultado = cursor.fetchone()
+
+        if resultado is None:
+            return jsonify({"precisa_saldo_inicial": True}), 200
+
+        saldo_inicial = resultado['valor']
+        cursor.execute('''
+            SELECT COALESCE(SUM(valor), 0) AS total_gasto
+            FROM lancamentos
+            WHERE usuario_id = ?
+        ''', (usuario_id,))
+        resultado_debitos = cursor.fetchone()
+        total_debitos = resultado_debitos['total_gasto']
     finally:
         conexao.close()
 
-    if resultado is None:
-        return jsonify({"precisa_saldo_inicial": True}), 200
-
-    saldo_inicial = resultado['valor']
-    total_debitos = 0.00
     return jsonify({
         "precisa_saldo_inicial": False,
         "saldo_inicial": saldo_inicial,
