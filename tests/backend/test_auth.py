@@ -1,11 +1,23 @@
+from backend.database import conectar_banco
+
+
 def test_cadastro_sucesso(client):
     """Teste 01 - Cadastro: Valida se um novo usuário é criado com sucesso."""
     response = client.post('/cadastro', json={
         'nome': 'Novo Usuario',
         'email': 'novo@teste.com',
-        'senha_pin': '1234'
+        'senha_pin': '1234',
+        'telefone': '(11) 99999-9999'
     })
     assert response.status_code in [200, 201]
+
+    conexao = conectar_banco()
+    usuario = conexao.execute(
+        "SELECT telefone FROM usuarios WHERE email = ?",
+        ('novo@teste.com',)
+    ).fetchone()
+    conexao.close()
+    assert usuario['telefone'] == '(11) 99999-9999'
 
 def test_cadastro_email_duplicado(client):
     """Teste 02 - Regra de Negócio: Impede cadastro de e-mail já existente."""

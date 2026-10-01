@@ -22,6 +22,10 @@ app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path='/')
 def serve_frontend():
     return send_from_directory(app.static_folder, 'index.html')
 
+@app.route('/cadastro', methods=['GET'])
+def serve_cadastro():
+    return send_from_directory(app.static_folder, 'cadastro.html')
+
 @app.route('/dashboard')
 def dashboard():
     """Rota temporária/placeholder para atender o redirecionamento do teste E2E de sucesso."""

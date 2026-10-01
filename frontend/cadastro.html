@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro - Fluxo de Caixa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-image: url('https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?q=80&w=2070&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center h-screen font-sans relative">
+    <!-- Overlay escuro para dar contraste -->
+    <div class="absolute inset-0 bg-black/60 z-0"></div>
+
+    <!-- Card de Cadastro -->
+    <div class="z-10 w-full max-w-md bg-white/10 backdrop-blur-md border border-white/20 p-8 rounded-2xl shadow-2xl text-white">
+        <h2 class="text-2xl font-bold text-center mb-2">Crie sua Conta</h2>
+        <p class="text-sm text-gray-300 text-center mb-6">Preencha os dados abaixo para acessar o sistema.</p>
+
+        <form id="formCadastro" class="space-y-4">
+            <!-- Nome -->
+            <div>
+                <label for="nome" class="block text-sm font-medium mb-1">Nome Completo</label>
+                <input type="text" id="nome" required
+                    placeholder="Ex: João da Silva"
+                    class="w-full px-4 py-2 bg-black/30 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 text-white placeholder-gray-400">
+            </div>
+
+            <!-- E-mail -->
+            <div>
+                <label for="email" class="block text-sm font-medium mb-1">E-mail</label>
+                <input type="email" id="email" required
+                    placeholder="Ex: seu.email@dominio.com"
+                    class="w-full px-4 py-2 bg-black/30 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 text-white placeholder-gray-400">
+            </div>
+
+            <!-- Telefone -->
+            <div>
+                <label for="telefone" class="block text-sm font-medium mb-1">Telefone de Contato</label>
+                <input type="tel" id="telefone" required
+                    placeholder="Ex: (11) 99999-9999"
+                    class="w-full px-4 py-2 bg-black/30 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 text-white placeholder-gray-400">
+            </div>
+
+            <!-- Senha -->
+            <div>
+                <label for="senha" class="block text-sm font-medium mb-1">Senha (Mínimo 6 caracteres)</label>
+                <input type="password" id="senha" minlength="6" required
+                    placeholder="******"
+                    class="w-full px-4 py-2 bg-black/30 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 text-white placeholder-gray-400">
+            </div>
+
+            <button type="submit" class="w-full py-3 mt-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg transition-colors shadow-lg">
+                Finalizar Cadastro
+            </button>
+        </form>
+
+        <div class="mt-6 text-center">
+            <p class="text-sm text-gray-300">
+                Já possui uma conta? 
+                <a href="/" class="text-emerald-400 font-semibold hover:text-emerald-300 hover:underline transition-colors">
+                    Faça o Login
+                </a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('formCadastro').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const nome = document.getElementById('nome').value;
+            const email = document.getElementById('email').value;
+            const telefone = document.getElementById('telefone').value;
+            const senha = document.getElementById('senha').value;
+
+            try {
+                const response = await fetch('/cadastro', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    // Enviamos "senha_pin" para manter o contrato atual do backend
+                    body: JSON.stringify({ nome, email, telefone, senha_pin: senha }) 
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('Cadastro realizado com sucesso! Você será redirecionado para o login.');
+                    window.location.href = '/';
+                } else {
+                    alert('Erro ao cadastrar: ' + (data.erro || 'Verifique os dados.'));
+                }
+            } catch (error) {
+                console.error('Erro de comunicação:', error);
+                alert('Erro ao conectar com o servidor.');
+            }
+        });
+    </script>
+</body>
+</html>

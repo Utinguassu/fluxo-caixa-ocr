@@ -33,11 +33,3 @@ def capturar_evidencia(page, request):
     
     page.screenshot(path=caminho_print, full_page=True)
 
-# Exemplo de ajuste no conftest.py do Playwright
-@pytest.fixture(scope="session")
-def browser_context_args(browser_context_args):
-    return {
-        **browser_context_args,
-        "record_video_dir": "relatorios/evidencias_e2e/videos/",
-       
-    }    

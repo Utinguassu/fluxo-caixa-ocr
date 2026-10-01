@@ -12,6 +12,7 @@ def cadastrar_usuario():
     nome = dados.get('nome')
     email_bruto = dados.get('email')
     senha_pin = dados.get('senha_pin')
+    telefone = dados.get('telefone')
 
     if not nome or not email_bruto or not senha_pin:
         return jsonify({"erro": "Todos os campos são obrigatórios!"}), 400
@@ -21,7 +22,10 @@ def cadastrar_usuario():
     try:
         conexao = conectar_banco()
         cursor = conexao.cursor()
-        cursor.execute("INSERT INTO usuarios (nome, email, senha_pin) VALUES (?, ?, ?)", (nome, email_formatado, senha_pin))
+        cursor.execute(
+            "INSERT INTO usuarios (nome, email, senha_pin, telefone) VALUES (?, ?, ?, ?)",
+            (nome, email_formatado, senha_pin, telefone)
+        )
         conexao.commit()
         conexao.close()
         return jsonify({"mensagem": "Usuário cadastrado com sucesso!"}), 201

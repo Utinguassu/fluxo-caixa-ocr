@@ -5,21 +5,26 @@
 Projeto de desenvolvimento de software para controle financeiro pessoal, focado em automação de lançamentos via leitura de imagens (OCR) acessível via rede local.
 
 ## 🎯 Objetivo do Projeto
-Criar uma ferramenta de controle de caixa responsiva (foco mobile) que permita a inserção de um saldo inicial e a dedução automática de gastos diários através do upload de prints de extratos bancários e faturas de cartão. O sistema utiliza Visão Computacional para ler os dados da imagem e atualizar o dashboard em tempo real.
+Criar uma ferramenta de controle de caixa responsiva (foco mobile) que permita a inserção de um saldo inicial e a dedução automática de gastos diários através do upload de prints de extratos bancários e faturas de cartão. O sistema utiliza Visão Computacional para ler os dados da imagem e atualizar o dashboard em real time.
 
 ## 🛠️ Tecnologias Utilizadas (Tech Stack)
-* **Backend:** Python (API REST)
-* **Banco de Dados:** SQLite
+* **Backend:** Python (API REST com Flask)
+* **Banco de Dados:** SQLite (com migrações seguras e suporte a retrocompatibilidade)
 * **Processamento de Imagem:** Bibliotecas de OCR em Python (Tesseract/EasyOCR)
 * **Frontend:** HTML5, CSS3 (Tailwind) e JavaScript Vanilla
-* **Controle de Versão e Gestão:** Git, GitHub Projects (Kanban)
+* **Testes e Qualidade:** Pytest (API/Unidade) e Playwright (E2E / BDD / Page Object Model)
+* **Controle de Versão e Gestão:** Git, GitHub Projects (Kanban) e CI/CD via GitHub Actions
 
 ## 📌 Status do Projeto
-🚧 Em desenvolvimento (Fase 1: Backend e Banco de Dados)
+🚧 Em desenvolvimento (Fase atual: Módulos de Autenticação, Cadastro e Testes E2E Integrados validados)
 
-## Testes E2E com Playwright
+## 🧪 Testes E2E com Playwright
 
 Os testes E2E usam o Chrome e gravam vídeo e screenshot em `relatorios/evidencias_e2e/`. O pytest também gera um relatório HTML em `relatorios/`. Esses arquivos locais são ignorados pelo Git; no GitHub Actions, ficam disponíveis para download como artefato da execução.
+
+### Principais Fluxos Cobertos pelos Testes:
+* **Fluxo de Cadastro (UI):** Criação de novo usuário diretamente pela interface visual (com validação de nome, e-mail, telefone e senha mínima).
+* **Fluxo de Login e Segurança:** Validação de credenciais válidas/inválidas, armazenamento de token JWT no `localStorage` e redirecionamento para o `/dashboard`.
 
 ### Preparar um clone novo no Windows
 
@@ -30,27 +35,3 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m playwright install chrome ffmpeg
-```
-
-### Executar o teste de login
-
-Inicie o servidor em um primeiro terminal PowerShell:
-
-```powershell
-$env:JWT_SECRET_KEY = "local-e2e-secret"
-.\.venv\Scripts\python.exe -m flask --app backend.app run --host 127.0.0.1 --port 5000
-```
-
-Em outro terminal, execute o cenário. `--headed` abre o Chrome visivelmente e `--slowmo 500` desacelera as ações para facilitar a observação:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest tests/e2e/test_e2e_login.py --headed --slowmo 500
-```
-
-Para executar toda a suíte, use:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest
-```
-
-O workflow do GitHub Actions instala as dependências Python e do navegador, inicia a aplicação, executa toda a suíte e publica os relatórios e as evidências mesmo quando algum teste falha.

@@ -36,9 +36,15 @@ def inicializar_banco(ambiente=None):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
-            senha_pin TEXT NOT NULL
+            senha_pin TEXT NOT NULL,
+            telefone TEXT
         )
     ''')
+
+    cursor.execute('PRAGMA table_info(usuarios)')
+    colunas_usuarios = {coluna['name'] for coluna in cursor.fetchall()}
+    if 'telefone' not in colunas_usuarios:
+        cursor.execute("ALTER TABLE usuarios ADD COLUMN telefone TEXT")
     
     # NOVA: Tabela de Histórico de Saldos Iniciais (RN05 e RN05.01)
     cursor.execute('''
