@@ -1,3 +1,4 @@
+import logging
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from backend.database import conectar_banco
@@ -42,3 +43,51 @@ def listar_transacoes():
 
     transacoes = [{"id": l[0], "tipo": l[1], "valor": l[2], "descricao": l[3], "data": l[4]} for l in linhas]
     return jsonify(transacoes), 200
+
+
+@transacoes_bp.route('/api/extrato', methods=['GET'])
+@jwt_required()
+def obter_extrato():
+    """RN04: Retorna os lançamentos do usuário, do mais recente ao mais antigo."""
+    usuario_id = get_jwt_identity()
+    conexao = None
+    try:
+        conexao = conectar_banco()
+        cursor = conexao.cursor()
+        cursor.execute('''
+            SELECT id, tipo, valor, data_lancamento, estabelecimento, data_cadastro
+            FROM lancamentos
+            WHERE usuario_id = ?
+            ORDER BY COALESCE(data_lancamento, data_cadastro) DESC, id DESC
+        ''', (usuario_id,))
+        linhas = cursor.fetchall()
+
+        extrato = []
+        for linha in linhas:
+            data_final = linha['data_lancamento'] or linha['data_cadastro']
+            extrato.append({
+                "id": linha['id'],
+                "tipo": linha['tipo'].upper() if linha['tipo'] else "OUTROS",
+                "valor": float(linha['valor']),
+                "data": data_final,
+                "estabelecimento": (
+                    linha['estabelecimento'] or "Estabelecimento não identificado"
+                ),
+            })
+
+        return jsonify({
+            "status": "success",
+            "total_registros": len(extrato),
+            "lancamentos": extrato,
+        }), 200
+    except Exception:
+        logging.exception(
+            "Erro ao buscar extrato para o utilizador %s", usuario_id
+        )
+        return jsonify({
+            "status": "error",
+            "mensagem": "Erro interno ao processar o extrato.",
+        }), 500
+    finally:
+        if conexao is not None:
+            conexao.close()
