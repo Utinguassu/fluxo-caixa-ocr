@@ -31,7 +31,21 @@ def dashboard():
     return send_from_directory(app.static_folder, 'dashboard.html')
 
 CORS(app)
-Swagger(app)
+Swagger(app, template={
+    "swagger": "2.0",
+    "info": {
+        "title": "Fluxo de Caixa API",
+        "version": "1.0.0",
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "Use o formato: Bearer <token>",
+        }
+    },
+})
 
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 if not app.config["JWT_SECRET_KEY"]:

@@ -9,6 +9,19 @@ saldo_bp = Blueprint('saldo', __name__)
 @saldo_bp.route('/saldo', methods=['GET'])
 @jwt_required()
 def obter_saldo():
+    """
+        Consulta o saldo calculado a partir do histórico e das transações.
+        ---
+        tags:
+            - Saldo e Motor Financeiro
+        security:
+            - BearerAuth: []
+        responses:
+            200:
+                description: Saldo atual calculado com sucesso.
+            401:
+                description: Token ausente ou inválido.
+    """
     usuario_id = get_jwt_identity()
     conn = obter_conexao()
     cursor = conn.cursor()
@@ -45,7 +58,19 @@ def obter_saldo():
 @saldo_bp.route('/api/saldo', methods=['GET'])
 @jwt_required()
 def consultar_saldo_inicial():
-    """Retorna o saldo inicial mais recente do usuário autenticado, se houver."""
+    """
+        Consulta o saldo inicial mais recente e os débitos do utilizador.
+        ---
+        tags:
+            - Saldo e Motor Financeiro
+        security:
+            - BearerAuth: []
+        responses:
+            200:
+                description: Saldo calculado ou indicação de que falta cadastrar o saldo inicial.
+            401:
+                description: Token ausente ou inválido.
+    """
     usuario_id = get_jwt_identity()
     conexao = obter_conexao()
     try:
@@ -82,7 +107,22 @@ def consultar_saldo_inicial():
 @saldo_bp.route('/api/saldo', methods=['POST'])
 @jwt_required()
 def cadastrar_saldo():
-    """Cadastra um novo saldo inicial sem apagar o histórico anterior."""
+    """
+        Cadastra um novo saldo inicial sem apagar os registros anteriores.
+        ---
+        tags:
+            - Saldo e Motor Financeiro
+        security:
+            - BearerAuth: []
+        parameters: [{in: body, name: body, required: true, schema: {type: object, required: [valor], properties: {valor: {type: number, format: float}}}}]
+        responses:
+            201:
+                description: Saldo inicial definido com sucesso.
+            400:
+                description: Valor ausente ou inválido.
+            401:
+                description: Token ausente ou inválido.
+    """
     dados = request.get_json(silent=True)
     if not isinstance(dados, dict) or dados.get('valor') is None:
         return jsonify({"erro": "Valor é obrigatório"}), 400

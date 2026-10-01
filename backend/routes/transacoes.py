@@ -8,6 +8,22 @@ transacoes_bp = Blueprint('transacoes', __name__)
 @transacoes_bp.route('/transacoes', methods=['POST'])
 @jwt_required() # <--- A Mágica de Segurança (Exige o Token)
 def criar_transacao():
+    """
+        Registra uma transação para o utilizador autenticado.
+        ---
+        tags:
+            - Transações
+        security:
+            - BearerAuth: []
+        parameters: [{in: body, name: body, required: true, schema: {type: object, required: [tipo, valor, descricao], properties: {tipo: {type: string}, valor: {type: number, format: float}, descricao: {type: string}}}}]
+        responses:
+            201:
+                description: Transação registrada com sucesso.
+            400:
+                description: Campos obrigatórios ausentes ou inválidos.
+            401:
+                description: Token ausente ou inválido.
+    """
     usuario_id = get_jwt_identity() # Pega o ID de quem está logado pelo Token
     dados = request.get_json() or {}
     
@@ -32,6 +48,19 @@ def criar_transacao():
 @transacoes_bp.route('/transacoes', methods=['GET'])
 @jwt_required()
 def listar_transacoes():
+    """
+        Lista as transações do utilizador autenticado.
+        ---
+        tags:
+            - Transações
+        security:
+            - BearerAuth: []
+        responses:
+            200:
+                description: Lista de transações do utilizador.
+            401:
+                description: Token ausente ou inválido.
+    """
     usuario_id = get_jwt_identity() # Garante Isolamento RN07
     
     conexao = conectar_banco()
@@ -48,7 +77,21 @@ def listar_transacoes():
 @transacoes_bp.route('/api/extrato', methods=['GET'])
 @jwt_required()
 def obter_extrato():
-    """RN04: Retorna os lançamentos do usuário, do mais recente ao mais antigo."""
+    """
+        Retorna a linha do tempo de lançamentos (Extrato).
+        ---
+        tags:
+            - Transações
+        security:
+            - BearerAuth: []
+        responses:
+            200:
+                description: Extrato ordenado do mais recente para o mais antigo.
+            401:
+                description: Token ausente ou inválido.
+            500:
+                description: Erro interno ao processar o extrato.
+    """
     usuario_id = get_jwt_identity()
     conexao = None
     try:

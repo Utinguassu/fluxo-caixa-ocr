@@ -35,3 +35,40 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m playwright install chrome ffmpeg
+
+## 📚 Documentação Interativa das APIs (Swagger / OpenAPI)
+
+A aplicação conta com documentação nativa gerada via **Flasgger (OpenAPI 2.0)**. 
+
+### Como Acessar
+Com a aplicação em execução (`python -m flask --app backend.app run`), acesse no navegador:
+
+* **Swagger UI (Interface Interativa):** [http://localhost:5000/apidocs/](http://localhost:5000/apidocs/)
+* **Especificação OpenAPI (JSON):** [http://localhost:5000/apispec_1.json](http://localhost:5000/apispec_1.json)
+
+---
+
+### Mapeamento de Endpoints por Tag
+
+#### 🔑 Autenticação (`/auth`)
+* `POST /cadastro` - Registro de novos usuários com captura de telefone.
+* `POST /login` - Autenticação de credenciais e geração de token JWT.
+
+#### 💰 Saldo e Motor Financeiro (`/saldo`)
+* `GET /saldo` - Consulta legada do saldo atualizado.
+* `GET /api/saldo` - Consulta do saldo inicial, total de débitos e saldo atualizado do usuário autenticado.
+* `POST /api/saldo` - Definição do saldo inicial obrigatório (RN05).
+
+#### 💳 Transações e Extrato (`/transacoes`)
+* `POST /transacoes` - Lançamento manual de débitos.
+* `GET /transacoes` - Listagem geral de transações.
+* `GET /api/extrato` - Extrato detalhado da linha do tempo ordenado do mais recente para o mais antigo (RN04).
+
+---
+
+### 🛡️ Como Autenticar no Swagger UI
+1. Faça uma requisição em `POST /login` com suas credenciais.
+2. Copie o valor da chave `token` retornado no corpo da resposta.
+3. No topo da página do Swagger (`http://localhost:5000/apidocs/`), clique no botão **Authorize** (cadeado).
+4. No campo de valor, digite `Bearer ` seguido do seu token (exemplo: `Bearer eyJhbGciOi...`).
+5. Clique em **Authorize** e feche a janela. As rotas protegidas por JWT estarão liberadas para teste direto na interface.

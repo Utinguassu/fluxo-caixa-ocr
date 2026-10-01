@@ -7,7 +7,18 @@ auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/cadastro', methods=['POST'])
 def cadastrar_usuario():
-    """Registo de novo utilizador no sistema (ver doc Swagger)"""
+    """
+    Cadastra um novo utilizador no sistema.
+        ---
+        tags:
+            - Autenticação
+        parameters: [{in: body, name: body, required: true, schema: {type: object, required: [nome, email, senha_pin], properties: {nome: {type: string}, email: {type: string, format: email}, senha_pin: {type: string}, telefone: {type: string}}}}]
+        responses:
+            201:
+                description: Utilizador criado com sucesso.
+            400:
+                description: Erro de validação ou e-mail duplicado.
+    """
     dados = request.get_json() or {}
     nome = dados.get('nome')
     email_bruto = dados.get('email')
@@ -35,7 +46,20 @@ def cadastrar_usuario():
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    """Autenticação de utilizador (Login)"""
+    """
+    Autentica um utilizador e devolve o token JWT.
+        ---
+        tags:
+            - Autenticação
+        parameters: [{in: body, name: body, required: true, schema: {type: object, required: [email, senha_pin], properties: {email: {type: string, format: email}, senha_pin: {type: string}}}}]
+        responses:
+            200:
+                description: Login efetuado com sucesso; retorna o token JWT.
+            400:
+                description: E-mail ou senha ausente.
+            401:
+                description: Credenciais inválidas.
+    """
     dados = request.get_json() or {}
     email_bruto = dados.get('email')
     senha_pin = dados.get('senha_pin')
