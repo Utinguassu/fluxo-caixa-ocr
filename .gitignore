@@ -23,3 +23,8 @@ htmlcov/
 venv/
 env/
 .venv/
+
+# 5. Relatórios e evidências gerados pelos testes
+/relatorios/evidencias_e2e/
+/relatorios/relatorio_Local_*.html
+/relatorios/relatorio_GitHub_*.html

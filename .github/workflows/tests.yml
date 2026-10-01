@@ -34,13 +34,34 @@ jobs:
         python -m pip install -r requirements.txt
         python -m pip check
 
+    - name: Instalar Chrome e FFmpeg do Playwright
+      run: python -m playwright install --with-deps chrome ffmpeg
+
     - name: Executar Suíte de Testes
       run: |
+        python -m flask --app backend.app run --host 127.0.0.1 --port 5000 > /tmp/fluxo-caixa-server.log 2>&1 &
+        server_pid=$!
+        trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+        for attempt in $(seq 1 30); do
+          if curl --silent --fail http://127.0.0.1:5000/ > /dev/null; then
+            break
+          fi
+          sleep 1
+        done
+
+        if ! curl --silent --fail http://127.0.0.1:5000/ > /dev/null; then
+          cat /tmp/fluxo-caixa-server.log
+          exit 1
+        fi
+
         python -m pytest
 
-    - name: Salvar Relatório HTML como Artefato
+    - name: Salvar relatórios e evidências como artefato
       uses: actions/upload-artifact@v4
-      if: always() 
+      if: always()
       with:
-        name: relatorio-testes-html
-        path: relatorios/
+        name: relatorios-e-evidencias-${{ github.run_number }}
+        path: |
+          relatorios/
+        if-no-files-found: warn
