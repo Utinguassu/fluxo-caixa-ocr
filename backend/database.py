@@ -36,7 +36,9 @@ def inicializar_banco(ambiente=None):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
-            senha_pin TEXT NOT NULL
+            senha_pin TEXT NOT NULL,
+            telefone TEXT,
+            data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
