@@ -56,6 +56,16 @@ def inicializar_banco(ambiente=None):
             FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
         )
     ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS saldos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER NOT NULL,
+            valor REAL NOT NULL,
+            data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+        )
+    ''')
     
     # Tabela de Transações com Isolamento por Usuário (CARD-02)
     cursor.execute('''

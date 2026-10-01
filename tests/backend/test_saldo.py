@@ -52,3 +52,34 @@ def test_api_saldo_atualizado(client, token):
     # pois a rota ainda não foi construída no backend.
     assert response.status_code == 200
     assert "saldo_atual" in response.json    
+
+
+def test_api_cadastra_e_consulta_saldo_inicial(client, token):
+    headers = {"Authorization": f"Bearer {token}"}
+
+    consulta_inicial = client.get('/api/saldo', headers=headers)
+    assert consulta_inicial.status_code == 200
+    assert consulta_inicial.json == {"precisa_saldo_inicial": True}
+
+    cadastro = client.post('/api/saldo', json={"valor": 850.75}, headers=headers)
+    assert cadastro.status_code == 201
+
+    consulta_final = client.get('/api/saldo', headers=headers)
+    assert consulta_final.status_code == 200
+    assert consulta_final.json == {
+        "precisa_saldo_inicial": False,
+        "saldo_inicial": 850.75,
+        "total_debitos": 0.0,
+        "saldo_atualizado": 850.75,
+    }
+
+
+def test_api_cadastro_saldo_exige_valor(client, token):
+    response = client.post(
+        '/api/saldo',
+        json={},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 400
+    assert response.json == {"erro": "Valor é obrigatório"}

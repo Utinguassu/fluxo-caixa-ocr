@@ -28,8 +28,7 @@ def serve_cadastro():
 
 @app.route('/dashboard')
 def dashboard():
-    """Rota temporária/placeholder para atender o redirecionamento do teste E2E de sucesso."""
-    return "<h1>Dashboard - Fluxo de Caixa</h1>", 200
+    return send_from_directory(app.static_folder, 'dashboard.html')
 
 CORS(app)
 Swagger(app)

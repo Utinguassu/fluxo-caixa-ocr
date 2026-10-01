@@ -4,7 +4,7 @@ class DashboardPage:
         self.url_esperada = "**/dashboard"
 
         # Elementos da tela de dashboard (ex: título ou indicador de saldo/sessão)
-        self.titulo_dashboard = page.locator("h1, h2", has_text="Dashboard")
+        self.titulo_dashboard = page.locator("h1, h2", has_text="Meu Caixa")
         self.botao_logout = page.locator("#logout, text=Sair")
 
     def validar_redirecionamento_com_sucesso(self):

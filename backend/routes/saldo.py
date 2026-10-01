@@ -1,4 +1,5 @@
-from flask import Blueprint, jsonify
+import math
+from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from backend.database import obter_conexao
 from backend.services.saldo_service import SaldoService
@@ -39,3 +40,63 @@ def obter_saldo():
     saldo_atual = SaldoService.calcular(saldo_inicial, transacoes)
 
     return jsonify({"saldo_atual": saldo_atual}), 200
+
+
+@saldo_bp.route('/api/saldo', methods=['GET'])
+@jwt_required()
+def consultar_saldo_inicial():
+    """Retorna o saldo inicial mais recente do usuário autenticado, se houver."""
+    usuario_id = get_jwt_identity()
+    conexao = obter_conexao()
+    try:
+        cursor = conexao.cursor()
+        cursor.execute('''
+            SELECT valor FROM saldos
+            WHERE usuario_id = ?
+            ORDER BY data_cadastro DESC LIMIT 1
+        ''', (usuario_id,))
+        resultado = cursor.fetchone()
+    finally:
+        conexao.close()
+
+    if resultado is None:
+        return jsonify({"precisa_saldo_inicial": True}), 200
+
+    saldo_inicial = resultado['valor']
+    total_debitos = 0.00
+    return jsonify({
+        "precisa_saldo_inicial": False,
+        "saldo_inicial": saldo_inicial,
+        "total_debitos": total_debitos,
+        "saldo_atualizado": saldo_inicial - total_debitos,
+    }), 200
+
+
+@saldo_bp.route('/api/saldo', methods=['POST'])
+@jwt_required()
+def cadastrar_saldo():
+    """Cadastra um novo saldo inicial sem apagar o histórico anterior."""
+    dados = request.get_json(silent=True)
+    if not isinstance(dados, dict) or dados.get('valor') is None:
+        return jsonify({"erro": "Valor é obrigatório"}), 400
+
+    try:
+        novo_valor = float(dados['valor'])
+    except (TypeError, ValueError):
+        return jsonify({"erro": "Valor deve ser numérico"}), 400
+
+    if not math.isfinite(novo_valor):
+        return jsonify({"erro": "Valor deve ser numérico"}), 400
+
+    usuario_id = get_jwt_identity()
+    conexao = obter_conexao()
+    try:
+        conexao.execute(
+            "INSERT INTO saldos (usuario_id, valor) VALUES (?, ?)",
+            (usuario_id, novo_valor),
+        )
+        conexao.commit()
+    finally:
+        conexao.close()
+
+    return jsonify({"mensagem": "Saldo cadastrado com sucesso!"}), 201
