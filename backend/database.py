@@ -1,60 +1,41 @@
-import os
 import sqlite3
+import os
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PRD_PATH = os.path.join(BASE_DIR, 'db', 'prd', 'app_prd.db')
-DB_TEST_PATH = os.path.join(BASE_DIR, 'db', 'tests', 'manual_test.db')
+# 1. Restauração da Lógica de Ambiente
+ENV = os.getenv('FLASK_ENV', 'development')
+if ENV == 'test':
+    DB_PATH = 'fluxo_caixa_teste.db'
+else:
+    DB_PATH = os.getenv('DATABASE_URL', 'app_prd.db')
 
-def conectar_banco(ambiente=None):
-    """
-    Gere a conexão com o banco de dados de acordo com o ambiente:
-    - 'prd': Banco de dados oficial da aplicação.
-    - 'test': Banco de dados isolado para testes manuais/automatizados.
-    """
-    os.makedirs(os.path.dirname(DB_PRD_PATH), exist_ok=True)
-    os.makedirs(os.path.dirname(DB_TEST_PATH), exist_ok=True)
+def obter_conexao():
+    """Retorna uma conexão ativa com o banco de dados configurado para o ambiente."""
+    conexao = sqlite3.connect(DB_PATH)
+    conexao.row_factory = sqlite3.Row
+    return conexao
 
-    env = ambiente or os.getenv("FLASK_ENV", "prd")
-    caminho_db = DB_TEST_PATH if env == "test" else DB_PRD_PATH
+# Alias vital para manter retrocompatibilidade com códigos novos (transacoes.py) e velhos (ocr.py)
+conectar_banco = obter_conexao
 
-    # Mantem DB_PATH como override para os testes temporarios ja existentes.
-    if ambiente is None:
-        caminho_db = os.getenv("DB_PATH", caminho_db)
-
-    conn = sqlite3.connect(caminho_db)
-    conn.execute("PRAGMA foreign_keys = ON;")
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def inicializar_banco(ambiente=None):
-    conexao = conectar_banco(ambiente)
+def inicializar_banco():
+    """Inicializa as tabelas oficiais do sistema no banco de dados."""
+    conexao = obter_conexao()
     cursor = conexao.cursor()
     
-    # Tabela de Usuários (CARD-01)
+    # Tabela 1: Usuários
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
             senha_pin TEXT NOT NULL,
-            telefone TEXT,
-            data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            telefone TEXT
         )
     ''')
     
-    # NOVA: Tabela de Histórico de Saldos Iniciais (RN05 e RN05.01)
+    # Tabela 2: Saldo Inicial
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS historico_saldos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario_id INTEGER NOT NULL,
-            valor REAL NOT NULL,
-            data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
-        )
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS saldos (
+        CREATE TABLE IF NOT EXISTS saldo (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             usuario_id INTEGER NOT NULL,
             valor REAL NOT NULL,
@@ -62,35 +43,30 @@ def inicializar_banco(ambiente=None):
             FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
         )
     ''')
-       
-
-# Tabela para armazenar os débitos capturados (RN01, RN02, RN03)
+    
+    # Tabela 3: Lançamentos (Fonte Única da Verdade para Extrato, Transações e OCR)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS lancamentos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             usuario_id INTEGER NOT NULL,
-            tipo TEXT NOT NULL, -- 'PIX/CC' ou 'CARTAO'
+            tipo TEXT NOT NULL,
             valor REAL NOT NULL,
-            data_lancamento DATE,
+            data_lancamento TEXT,
             estabelecimento TEXT,
+            categoria TEXT DEFAULT 'Outros',
             data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
         )
     ''')
     
-    cursor.execute('PRAGMA table_info(transacoes)')
-    colunas_transacoes = {coluna['name'] for coluna in cursor.fetchall()}
-    if 'categoria' not in colunas_transacoes:
-        cursor.execute("ALTER TABLE transacoes ADD COLUMN categoria TEXT DEFAULT 'Outros'")
-    
+    # Migração segura para não quebrar bancos antigos que não têm a coluna categoria
+    try:
+        cursor.execute("ALTER TABLE lancamentos ADD COLUMN categoria TEXT DEFAULT 'Outros'")
+    except sqlite3.OperationalError:
+        pass  # A coluna já existe, segue o jogo
+        
     conexao.commit()
     conexao.close()
 
-
-# Alias para manter compatibilidade com modulos que usam obter_conexao().
-obter_conexao = conectar_banco
-
-# Permite executar o script diretamente no terminal para criar/atualizar o banco
 if __name__ == '__main__':
     inicializar_banco()
-    print("Banco de dados inicializado/atualizado com sucesso!")

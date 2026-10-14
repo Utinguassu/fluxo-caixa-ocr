@@ -13,15 +13,20 @@ JWT_SECRET_KEY_TESTE = "test-secret-key-environment-isolated-2026"
 def limpar_banco_antes_de_cada_teste():
     """Garante um banco zerado e isolado antes de CADA teste (Test Isolation)."""
     gc.collect()
-    inicializar_banco()
+    
+    # 1. Conecta e apaga as tabelas antigas e as atuais
     conn = obter_conexao()
-    conn.execute('DELETE FROM transacoes')
-    conn.execute('DELETE FROM lancamentos')
-    conn.execute('DELETE FROM saldos')
-    conn.execute('DELETE FROM historico_saldos')
-    conn.execute('DELETE FROM usuarios')
+    conn.execute('DROP TABLE IF EXISTS transacoes')
+    conn.execute('DROP TABLE IF EXISTS saldos')
+    conn.execute('DROP TABLE IF EXISTS historico_saldos')
+    conn.execute('DROP TABLE IF EXISTS lancamentos')
+    conn.execute('DROP TABLE IF EXISTS saldo')
+    conn.execute('DROP TABLE IF EXISTS usuarios')
     conn.commit()
     conn.close()
+    
+    # 2. RECria as tabelas oficiais do zero para o teste rodar
+    inicializar_banco()
 
 @pytest.fixture
 def client():
