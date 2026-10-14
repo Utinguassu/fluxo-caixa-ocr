@@ -86,10 +86,11 @@ def obter_extrato():
         conexao = conectar_banco()
         cursor = conexao.cursor()
         
+        # Ignora o SALDO_INICIAL para que o extrato venha limpo para novos utilizadores
         cursor.execute("""
             SELECT id, tipo, valor, data_lancamento, estabelecimento, data_cadastro 
             FROM lancamentos 
-            WHERE usuario_id = ? 
+            WHERE usuario_id = ? AND tipo != 'SALDO_INICIAL' 
             ORDER BY COALESCE(data_lancamento, data_cadastro) DESC, id DESC
         """, (usuario_id,))
         

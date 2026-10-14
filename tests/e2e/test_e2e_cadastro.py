@@ -1,12 +1,8 @@
 from uuid import uuid4
-
 import pytest
-
 from backend.database import conectar_banco
 
-
 BASE_URL = "http://localhost:5000"
-
 
 @pytest.fixture
 def dados_usuario_cadastro():
@@ -23,12 +19,7 @@ def dados_usuario_cadastro():
     conexao = conectar_banco()
     try:
         conexao.execute(
-            "DELETE FROM transacoes "
-            "WHERE usuario_id IN (SELECT id FROM usuarios WHERE email = ?)",
-            (email,),
-        )
-        conexao.execute(
-            "DELETE FROM historico_saldos "
+            "DELETE FROM lancamentos "
             "WHERE usuario_id IN (SELECT id FROM usuarios WHERE email = ?)",
             (email,),
         )
@@ -36,7 +27,6 @@ def dados_usuario_cadastro():
         conexao.commit()
     finally:
         conexao.close()
-
 
 def test_cadastro_pela_interface_salva_telefone(page, dados_usuario_cadastro):
     mensagens_alerta = []

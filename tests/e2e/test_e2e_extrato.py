@@ -1,25 +1,19 @@
 import os
 import re
 import uuid
-
 import pytest
 from playwright.sync_api import Page, expect
-
 from backend.database import conectar_banco
-
 
 BASE_URL = os.getenv("E2E_BASE_URL", "http://localhost:5000")
 
-
 @pytest.fixture
 def dados_usuario_dashboard():
-    """Gera dados únicos para o fluxo de cadastro pela UI, sem inserir no banco."""
     email_unico = f"extrato_ui_{uuid.uuid4().hex[:8]}@fluxocaixa.com"
     dados = {
         "nome": "Usuario Teste Extrato",
         "email": email_unico,
         "telefone": "(11) 98888-0000",
-        # A tela de login limita a senha a seis caracteres.
         "senha": "123456",
     }
 
@@ -27,25 +21,17 @@ def dados_usuario_dashboard():
 
     conexao = conectar_banco()
     try:
-        for tabela in ("lancamentos", "saldos", "historico_saldos", "transacoes"):
-            conexao.execute(
-                f"DELETE FROM {tabela} "
-                "WHERE usuario_id IN (SELECT id FROM usuarios WHERE email = ?)",
-                (email_unico,),
-            )
+        conexao.execute(
+            "DELETE FROM lancamentos "
+            "WHERE usuario_id IN (SELECT id FROM usuarios WHERE email = ?)",
+            (email_unico,),
+        )
         conexao.execute("DELETE FROM usuarios WHERE email = ?", (email_unico,))
         conexao.commit()
     finally:
         conexao.close()
 
-
 def test_extrato_cenarios_bdd(page: Page, dados_usuario_dashboard):
-    """
-    Feature: Linha do Tempo / Extrato (RN04)
-    Como um utilizador do sistema
-    Quero ver meus débitos organizados de forma cronológica
-    Para acompanhar os meus gastos com clareza
-    """
     page.goto(f"{BASE_URL}/cadastro")
     page.locator("#nome").fill(dados_usuario_dashboard["nome"])
     page.locator("#email").fill(dados_usuario_dashboard["email"])

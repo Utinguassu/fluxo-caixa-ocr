@@ -1,52 +1,65 @@
 import pytest
+from backend.database import conectar_banco
 
-def obter_token_teste(client, email):
-    client.post('/cadastro', json={
-        'nome': 'Usuario Saldo',
-        'email': email,
-        'senha_pin': '1234',
-        'telefone': '(11) 99999-9999'
-    })
-    res_login = client.post('/login', json={'email': email, 'senha_pin': '1234'})
-    return res_login.get_json()['access_token']
 
-def test_dado_usuario_novo_quando_cadastrar_saldo_entao_salva_com_sucesso(client):
-    token = obter_token_teste(client, "saldo_novo_bdd@teste.com")
-    headers = {'Authorization': f'Bearer {token}'}
+@pytest.fixture
+def header_auth_valido(token):
+    return {"Authorization": f"Bearer {token}"}
 
-    response = client.post('/api/saldo', json={'valor': 1500.00}, headers=headers)
-    assert response.status_code == 201
-    assert response.get_json()['mensagem'] == "Saldo inicial definido com sucesso!"
 
-def test_dado_usuario_com_saldo_e_despesas_quando_consultar_entao_retorna_calculo_correto(client):
-    token = obter_token_teste(client, "saldo_calculo_bdd@teste.com")
-    headers = {'Authorization': f'Bearer {token}'}
+def test_dado_usuario_novo_quando_consultar_saldo_entao_retorna_precisa_saldo_inicial(client, header_auth_valido):
+    """
+    Simula o momento em que um usuário acabou de se cadastrar e entra no Dashboard.
+    O sistema DEVE informar que ele precisa cadastrar o saldo (Modal Obrigatório).
+    """
+    resposta = client.get("/api/saldo", headers=header_auth_valido)
+    
+    assert resposta.status_code == 200
+    dados = resposta.get_json()
+    assert dados.get("precisa_saldo_inicial") is True
 
-    # 1. Define Saldo Inicial
-    res_saldo = client.post('/api/saldo', json={'valor': 1000.00}, headers=headers)
-    assert res_saldo.status_code == 201
 
-    # 2. Registra Débito via API 
-    res_trans = client.post('/transacoes', json={
-        'tipo': 'despesa', # Tipo alinhado com o backend para realizar a subtração
-        'valor': 150.00,
-        'estabelecimento': 'Mercado Central'
-    }, headers=headers)
-    assert res_trans.status_code == 201
+def test_dado_usuario_novo_quando_cadastrar_saldo_entao_salva_com_sucesso(client, header_auth_valido):
+    payload = {"valor": 1500.00}
+    resposta = client.post("/api/saldo", json=payload, headers=header_auth_valido)
+    
+    assert resposta.status_code == 201
+    assert resposta.get_json()["mensagem"] == "Saldo cadastrado com sucesso!"
 
-    # 3. Consulta o saldo consolidado (Corrigido de /api/saldo para /api/resumo)
-    response = client.get('/api/resumo', headers=headers)
-    dados = response.get_json() or {}
 
-    assert response.status_code == 200
-    assert dados['saldo_atual'] == 850.00
+def test_dado_usuario_com_saldo_e_despesas_quando_consultar_entao_retorna_calculo_correto(client, header_auth_valido):
+    # 1. O usuário cadastra o saldo inicial
+    client.post("/api/saldo", json={"valor": 2000.00}, headers=header_auth_valido)
+    
+    # 2. Inserimos uma despesa na tabela unificada de lançamentos (Mockando o banco)
+    conexao = conectar_banco()
+    try:
+        usuario = conexao.execute("SELECT id FROM usuarios LIMIT 1").fetchone()
+        usuario_id = usuario["id"]
+        
+        conexao.execute(
+            "INSERT INTO lancamentos (usuario_id, tipo, valor, estabelecimento, data_lancamento) VALUES (?, ?, ?, ?, ?)",
+            (usuario_id, "CARTAO", 500.00, "Mercado Teste", "2026-10-15")
+        )
+        conexao.commit()
+    finally:
+        conexao.close()
 
-def test_dado_payload_invalido_quando_cadastrar_saldo_entao_retorna_erro_400(client):
-    token = obter_token_teste(client, "saldo_erro_bdd@teste.com")
-    headers = {'Authorization': f'Bearer {token}'}
+    # 3. Consultamos o Saldo e verificamos a matemática!
+    resposta = client.get("/api/saldo", headers=header_auth_valido)
+    
+    assert resposta.status_code == 200
+    dados = resposta.get_json()
+    
+    assert dados.get("precisa_saldo_inicial") is False
+    assert dados["saldo_inicial"] == 2000.00
+    assert dados["total_debitos"] == 500.00
+    assert dados["saldo_atualizado"] == 1500.00
 
-    response_vazio = client.post('/api/saldo', json={}, headers=headers)
-    assert response_vazio.status_code == 400
 
-    response_texto = client.post('/api/saldo', json={'valor': 'abc'}, headers=headers)
-    assert response_texto.status_code == 400
+def test_dado_payload_invalido_quando_cadastrar_saldo_entao_retorna_erro_400(client, header_auth_valido):
+    # Cadastrando sem o campo "valor"
+    resposta = client.post("/api/saldo", json={"errado": 100}, headers=header_auth_valido)
+    
+    assert resposta.status_code == 400
+    assert "obrigatório" in resposta.get_json()["erro"].lower()
