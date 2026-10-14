@@ -62,20 +62,7 @@ def inicializar_banco(ambiente=None):
             FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
         )
     ''')
-    
-    # Tabela de Transações com Isolamento por Usuário (CARD-02)
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS transacoes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario_id INTEGER NOT NULL,
-            tipo TEXT NOT NULL, 
-            valor REAL NOT NULL,
-            descricao TEXT NOT NULL,
-            data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            categoria TEXT DEFAULT 'Outros',
-            FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
-        )
-    ''')
+       
 
 # Tabela para armazenar os débitos capturados (RN01, RN02, RN03)
     cursor.execute('''

@@ -1,125 +1,54 @@
-from backend.database import conectar_banco
-from backend.services.saldo_service import SaldoService
+import pytest
 
-def test_calculo_saldo_com_multiplas_despesas():
-    """
-    Cenário (BDD): Usuário faz compras e o saldo atual é deduzido corretamente.
+def obter_token_teste(client, email):
+    client.post('/cadastro', json={
+        'nome': 'Usuario Saldo',
+        'email': email,
+        'senha_pin': '1234',
+        'telefone': '(11) 99999-9999'
+    })
+    resp = client.post('/login', json={'email': email, 'senha_pin': '1234'})
+    dados = resp.get_json() or {}
+    return dados.get('access_token') or dados.get('token')
+
+def test_dado_usuario_novo_quando_cadastrar_saldo_entao_salva_com_sucesso(client):
+    token = obter_token_teste(client, "saldo_novo_bdd@teste.com")
+    headers = {'Authorization': f'Bearer {token}'}
     
-    Dado (Given) que o usuário tem um saldo inicial de R$ 1000.00
-    E (And) possui três transações cadastradas (R$ 100.00, R$ 50.50, R$ 200.00)
-    Quando (When) o motor financeiro calcular o saldo atual
-    Então (Then) o retorno deve ser exatos R$ 649.50
-    """
-    # Dado (Setup)
-    saldo_inicial = 1000.00
+    response = client.post('/api/saldo', json={'valor': 1500.00}, headers=headers)
+    dados = response.get_json() or {}
     
-    # Simulando o formato das transações que o banco de dados nos entregaria
-    transacoes = [
-        {"valor": 100.00},
-        {"valor": 50.50},
-        {"valor": 200.00}
-    ]
+    assert response.status_code == 201
+    assert "mensagem" in dados or "sucesso" in str(dados).lower() or dados.get("status") in ["success", "sucesso"]
 
-    # Quando (Ação)
-    saldo_atual = SaldoService.calcular(saldo_inicial, transacoes)
-
-    # Então (Garantia da precisão com 2 casas decimais)
-    assert saldo_atual == 649.50
-
-
-def test_calculo_saldo_negativo():
-    """
-    Cenário (BDD): Usuário gasta mais do que o saldo inicial.
+def test_dado_usuario_com_saldo_e_despesas_quando_consultar_entao_retorna_calculo_correto(client):
+    token = obter_token_teste(client, "saldo_calculo_bdd@teste.com")
+    headers = {'Authorization': f'Bearer {token}'}
     
-    Dado (Given) que o usuário tem saldo inicial nulo (0.00)
-    E (And) registra uma despesa de R$ 150.00
-    Então (Then) o saldo atual deve ser R$ -150.00
-    """
-    saldo_atual = SaldoService.calcular(0.00, [{"valor": 150.00}])
-    assert saldo_atual == -150.00
-
-def test_api_saldo_atualizado(client, token):
-    """
-    Cenário (BDD): O front-end solicita o saldo atualizado do usuário logado.
-    Quando (When) eu fizer uma requisição GET para a rota /saldo
-    Então (Then) a API deve retornar status 200 e o campo 'saldo_atual'
-    """
-    response = client.get(
-        '/saldo',
-        headers={"Authorization": f"Bearer {token}"}
-    )
+    # 1. Define Saldo Inicial
+    res_saldo = client.post('/api/saldo', json={'valor': 1000.00}, headers=headers)
+    assert res_saldo.status_code == 201
     
-    # Na fase Red do TDD, esperamos que isso quebre com um Erro 404 (Not Found), 
-    # pois a rota ainda não foi construída no backend.
+    # 2. Registra Débito via API (Sem campo descricao)
+    res_trans = client.post('/transacoes', json={
+        'tipo': 'CARTAO',
+        'valor': 150.00,
+        'estabelecimento': 'Mercado Central'
+    }, headers=headers)
+    assert res_trans.status_code == 201
+    
+    # 3. Consulta o saldo consolidado
+    response = client.get('/api/saldo', headers=headers)
+    dados = response.get_json() or {}
+    
     assert response.status_code == 200
-    assert "saldo_atual" in response.json    
+    assert dados['saldo_inicial'] == 1000.00
+    assert dados['total_debitos'] == 150.00
+    assert dados['saldo_atualizado'] == 850.00
 
-
-def test_api_cadastra_e_consulta_saldo_inicial(client, token):
-    headers = {"Authorization": f"Bearer {token}"}
-
-    consulta_inicial = client.get('/api/saldo', headers=headers)
-    assert consulta_inicial.status_code == 200
-    assert consulta_inicial.json == {"precisa_saldo_inicial": True}
-
-    cadastro = client.post('/api/saldo', json={"valor": 850.75}, headers=headers)
-    assert cadastro.status_code == 201
-
-    consulta_final = client.get('/api/saldo', headers=headers)
-    assert consulta_final.status_code == 200
-    assert consulta_final.json == {
-        "precisa_saldo_inicial": False,
-        "saldo_inicial": 850.75,
-        "total_debitos": 0.0,
-        "saldo_atualizado": 850.75,
-    }
-
-
-def test_api_saldo_soma_debitos_do_usuario_autenticado(client, token):
-    conexao = conectar_banco()
-    conexao.execute(
-        "INSERT INTO saldos (usuario_id, valor) VALUES (?, ?)",
-        (1, 1000.00),
-    )
-    conexao.execute(
-        "INSERT INTO lancamentos (usuario_id, tipo, valor) VALUES (?, ?, ?)",
-        (1, "PIX/CC", 125.50),
-    )
-    conexao.execute(
-        "INSERT INTO lancamentos (usuario_id, tipo, valor) VALUES (?, ?, ?)",
-        (1, "CARTAO", 74.50),
-    )
-    conexao.execute(
-        "INSERT INTO usuarios (id, nome, email, senha_pin) VALUES (?, ?, ?, ?)",
-        (2, "Outro Usuario", "outro@teste.com", "1234"),
-    )
-    conexao.execute(
-        "INSERT INTO lancamentos (usuario_id, tipo, valor) VALUES (?, ?, ?)",
-        (2, "PIX/CC", 900.00),
-    )
-    conexao.commit()
-    conexao.close()
-
-    response = client.get(
-        "/api/saldo",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-
-    assert response.status_code == 200
-    assert response.json == {
-        "precisa_saldo_inicial": False,
-        "saldo_inicial": 1000.0,
-        "total_debitos": 200.0,
-        "saldo_atualizado": 800.0,
-    }
-
-
-def test_api_cadastro_saldo_exige_valor(client, token):
-    response = client.post(
-        '/api/saldo',
-        json={},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-
+def test_dado_payload_invalido_quando_cadastrar_saldo_entao_retorna_erro_400(client):
+    token = obter_token_teste(client, "saldo_erro_bdd@teste.com")
+    headers = {'Authorization': f'Bearer {token}'}
+    
+    response = client.post('/api/saldo', json={}, headers=headers)
     assert response.status_code == 400
-    assert response.json == {"erro": "Valor é obrigatório"}

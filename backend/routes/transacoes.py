@@ -3,134 +3,115 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from backend.database import conectar_banco
 
-transacoes_bp = Blueprint('transacoes', __name__)
+transacoes_bp = Blueprint('transacoes_bp', __name__)
 
 @transacoes_bp.route('/transacoes', methods=['POST'])
-@jwt_required() # <--- A Mágica de Segurança (Exige o Token)
+@jwt_required()
 def criar_transacao():
     """
-        Registra uma transação para o utilizador autenticado.
-        ---
-        tags:
-            - Transações
-        security:
-            - BearerAuth: []
-        parameters: [{in: body, name: body, required: true, schema: {type: object, required: [tipo, valor, descricao], properties: {tipo: {type: string}, valor: {type: number, format: float}, descricao: {type: string}}}}]
-        responses:
-            201:
-                description: Transação registrada com sucesso.
-            400:
-                description: Campos obrigatórios ausentes ou inválidos.
-            401:
-                description: Token ausente ou inválido.
+    Registra um novo lançamento/débito no sistema.
+    ---
+    tags:
+      - Transações e Linha do Tempo
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            tipo:
+              type: string
+            valor:
+              type: number
+            estabelecimento:
+              type: string
+            data_lancamento:
+              type: string
+    responses:
+      201:
+        description: Lançamento criado com sucesso.
+      400:
+        description: Dados inválidos.
+      500:
+        description: Erro interno.
     """
-    usuario_id = get_jwt_identity() # Pega o ID de quem está logado pelo Token
+    usuario_id = get_jwt_identity()
     dados = request.get_json() or {}
     
-    tipo = dados.get('tipo')
+    tipo = dados.get('tipo', 'OUTROS')
     valor = dados.get('valor')
-    descricao = dados.get('descricao')
-
-    if not tipo or not valor or not descricao:
-        return jsonify({"erro": "Tipo, valor e descrição são obrigatórios."}), 400
-
-    conexao = conectar_banco()
-    cursor = conexao.cursor()
-    cursor.execute(
-        "INSERT INTO transacoes (usuario_id, tipo, valor, descricao) VALUES (?, ?, ?, ?)",
-        (usuario_id, tipo, float(valor), descricao)
-    )
-    conexao.commit()
-    conexao.close()
+    estabelecimento = dados.get('estabelecimento', '')
+    data_lancamento = dados.get('data_lancamento')
     
-    return jsonify({"mensagem": "Transação registrada com sucesso!"}), 201
-
-@transacoes_bp.route('/transacoes', methods=['GET'])
-@jwt_required()
-def listar_transacoes():
-    """
-        Lista as transações do utilizador autenticado.
-        ---
-        tags:
-            - Transações
-        security:
-            - BearerAuth: []
-        responses:
-            200:
-                description: Lista de transações do utilizador.
-            401:
-                description: Token ausente ou inválido.
-    """
-    usuario_id = get_jwt_identity() # Garante Isolamento RN07
-    
-    conexao = conectar_banco()
-    cursor = conexao.cursor()
-    # Busca APENAS as transações do dono do token
-    cursor.execute("SELECT id, tipo, valor, descricao, data FROM transacoes WHERE usuario_id = ?", (usuario_id,))
-    linhas = cursor.fetchall()
-    conexao.close()
-
-    transacoes = [{"id": l[0], "tipo": l[1], "valor": l[2], "descricao": l[3], "data": l[4]} for l in linhas]
-    return jsonify(transacoes), 200
+    if valor is None:
+        return jsonify({"erro": "O campo valor é obrigatório!"}), 400
+        
+    try:
+        conexao = conectar_banco()
+        cursor = conexao.cursor()
+        
+        cursor.execute("""
+          INSERT INTO lancamentos (usuario_id, tipo, valor, estabelecimento, data_lancamento)
+          VALUES (?, ?, ?, ?, ?)
+        """, (usuario_id, tipo, valor, estabelecimento, data_lancamento))
+        
+        conexao.commit()
+        conexao.close()
+        
+        return jsonify({"mensagem": "Lançamento registrado com sucesso!"}), 201
+    except Exception as e:
+        logging.error(f"Erro ao criar lançamento: {str(e)}")
+        return jsonify({"erro": "Erro interno ao registrar lançamento."}), 500
 
 
 @transacoes_bp.route('/api/extrato', methods=['GET'])
 @jwt_required()
 def obter_extrato():
     """
-        Retorna a linha do tempo de lançamentos (Extrato).
-        ---
-        tags:
-            - Transações
-        security:
-            - BearerAuth: []
-        responses:
-            200:
-                description: Extrato ordenado do mais recente para o mais antigo.
-            401:
-                description: Token ausente ou inválido.
-            500:
-                description: Erro interno ao processar o extrato.
+    Retorna a linha do tempo de lançamentos (Extrato).
+    ---
+    tags:
+      - Transações e Linha do Tempo
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Extrato ordenado do mais recente para o mais antigo.
     """
     usuario_id = get_jwt_identity()
-    conexao = None
     try:
         conexao = conectar_banco()
         cursor = conexao.cursor()
-        cursor.execute('''
-            SELECT id, tipo, valor, data_lancamento, estabelecimento, data_cadastro
-            FROM lancamentos
-            WHERE usuario_id = ?
+        
+        cursor.execute("""
+            SELECT id, tipo, valor, data_lancamento, estabelecimento, data_cadastro 
+            FROM lancamentos 
+            WHERE usuario_id = ? 
             ORDER BY COALESCE(data_lancamento, data_cadastro) DESC, id DESC
-        ''', (usuario_id,))
+        """, (usuario_id,))
+        
         linhas = cursor.fetchall()
-
+        conexao.close()
+        
         extrato = []
         for linha in linhas:
-            data_final = linha['data_lancamento'] or linha['data_cadastro']
+            data_final = linha['data_lancamento'] if linha['data_lancamento'] else linha['data_cadastro']
             extrato.append({
                 "id": linha['id'],
                 "tipo": linha['tipo'].upper() if linha['tipo'] else "OUTROS",
                 "valor": float(linha['valor']),
                 "data": data_final,
-                "estabelecimento": (
-                    linha['estabelecimento'] or "Estabelecimento não identificado"
-                ),
+                "estabelecimento": linha['estabelecimento'] or "Estabelecimento não identificado"
             })
-
+            
         return jsonify({
             "status": "success",
             "total_registros": len(extrato),
-            "lancamentos": extrato,
+            "lancamentos": extrato
         }), 200
-    except Exception:
-        logging.exception(
-            "Erro ao buscar extrato para o utilizador %s", usuario_id
-        )
-        return jsonify({
-            "status": "error",
-            "mensagem": "Erro interno ao processar o extrato.",
-        }), 500
-    finally:
-        if conexao is not None:
-            conexao.close()
+    except Exception as e:
+        logging.error(f"Erro ao buscar extrato: {str(e)}")
+        return jsonify({"status": "error", "mensagem": "Erro interno ao processar extrato."}), 500

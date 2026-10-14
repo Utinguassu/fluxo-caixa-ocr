@@ -72,3 +72,54 @@ Com a aplicação em execução (`python -m flask --app backend.app run`), acess
 3. No topo da página do Swagger (`http://localhost:5000/apidocs/`), clique no botão **Authorize** (cadeado).
 4. No campo de valor, digite `Bearer ` seguido do seu token (exemplo: `Bearer eyJhbGciOi...`).
 5. Clique em **Authorize** e feche a janela. As rotas protegidas por JWT estarão liberadas para teste direto na interface.
+
+## 🚀 Guia Completo de Instalação, Servidor e Testes (QA & Dev)
+
+Este guia contém as instruções passo a passo para configurar o ambiente, subir o servidor da aplicação e executar a bateria completa de testes automatizados (Backend e E2E com Playwright).
+
+---
+
+### 1. Preparações Iniciais do Ambiente (Executar apenas uma vez)
+
+Abra o terminal na raiz do projeto e siga os passos abaixo:
+
+1. **Ativar o Ambiente Virtual (`.venv`):**
+   * Windows (Git Bash): `source .venv/Scripts/activate`
+   * Linux / macOS: `source .venv/bin/activate`
+
+2. **Instalar Dependências do Python:**
+   ```bash
+   pip install -r requirements.txt
+
+  1-  Instalar Navegadores para Testes E2E (Playwright):
+   
+   Bash
+   playwright install
+
+ 2- Passo a Passo para Execução dos Testes (Backend + E2E)
+
+Os testes de interface (E2E/Playwright) exigem que a aplicação esteja rodando na porta 5000. Portanto, a execução dos testes requer 2 terminais.
+
+🖥️ Terminal 1 — Subir o Servidor da Aplicação
+
+# 1. Ativar o ambiente virtual
+source .venv/Scripts/activate
+
+# 2. Iniciar o servidor Flask
+python -m flask --app backend.app run --host 127.0.0.1 --port 5000
+
+Com o servidor ativo no Terminal 1, a aplicação estará disponível em http://localhost:5000 e a documentação interativa em http://localhost:5000/apidocs/.
+
+🧪 Terminal 2 — Executar a Suíte Completa de Testes
+Abra uma nova aba/janela no terminal mantendo o Terminal 1 rodando:
+
+Bash
+
+# 1. Ativar o ambiente virtual
+source .venv/Scripts/activate
+
+# 2. Limpar o banco de teste temporário
+rm fluxo_caixa_teste.db
+
+# 3. Executar TODOS os testes e gerar o relatório HTML BDD
+pytest --html=relatorio_testes_bdd.html --self-contained-html
